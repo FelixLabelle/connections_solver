@@ -107,3 +107,25 @@ if __name__ == "__main__":
     kshot_validity_correlation = spearmanr(global_results_df['k_shot'], global_results_df['percentage_format_passed'])
     print(global_results_df[output_columns].to_markdown(index=False))
     global_results_df.to_excel("results.xlsx",index=False)
+    
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import StandardScaler
+
+    experiment_variables = global_results_df[['param_count', 'k_shot', 'use_structured_prediction']]
+    y_accuracy = global_results_df['mean_accuracy'].values.reshape(-1, 1)
+    y_validity = global_results_df['percentage_format_passed'].values.reshape(-1, 1)
+
+    # Standardize features for better interpretation
+    scaler = StandardScaler()
+    scaled_experiment_variables = scaler.fit_transform(experiment_variables)
+    scaled_accuracy = scaler.fit_transform(y_accuracy).flatten()
+    scaled_validity = scaler.fit_transform(y_validity).flatten()
+    # Fit linear regression model to predict 'mean_accuracy'
+    reg_accuracy = LinearRegression()
+    reg_accuracy.fit(scaled_experiment_variables, scaled_accuracy)
+    print("Coefficients for 'mean_accuracy':", dict(zip(experiment_variables.columns, reg_accuracy.coef_)))
+
+    # Fit linear regression model to predict 'percentage_format_passed'
+    reg_validity = LinearRegression()
+    reg_validity.fit(scaled_experiment_variables, scaled_validity)
+    print("Coefficients for 'percentage_format_passed':", dict(zip(experiment_variables.columns, reg_validity.coef_)))

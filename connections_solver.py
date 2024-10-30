@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 from pydantic import BaseModel, ValidationError, conlist,constr
 
 from config import hf_token
-from metrics import calculate_statistics,generate_validation_regex
+from evaluate import calculate_statistics,generate_validation_regex
 
 # Disabling outlines cache because it balloons to 300+ GB
 cache.disable_cache()
@@ -198,15 +198,13 @@ if __name__ == "__main__":
                 formatted_example = {"groups" : [{"words" : group['members'],"theme" : group['group']} for group in k_shot_example["answers"]]}
                 messages.append({"role" : "user", "content" : f"Your words are {";".join(k_shot_connections_words)}. Good luck!"})
                 messages.append({"role" : "assistant", "content" : json.dumps(formatted_example)})
-        
+            
         connections_words = [word for item in nyt_connections_datum['answers'] for word in item['members']]
         random.Random(seed).shuffle(connections_words)
         prompt_words = f"Your words are {";".join(connections_words)}. Good luck!"
         messages += [{"role" : "user", "content" : prompt_words}]
-        #import pdb;pdb.set_trace()
+
         if use_structured_prediction:
-            # Dynamically generate validation pattern
-            
             AllowedWords = Enum('AllowedWords', {val: val for val in connections_words},type=str)
             
             class Group(BaseModel):
