@@ -29,4 +29,4 @@ def generate_experiment_bat(output_filename):
                         bat_file.write(command)
 
 if __name__ == "__main__":
-    generate_experiment_bat("grid_search_v3.bat")
+    generate_experiment_bat("generative_grid_search.bat")

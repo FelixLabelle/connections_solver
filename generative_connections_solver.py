@@ -1,6 +1,5 @@
 import argparse
 from enum import Enum
-import hashlib
 import torch
 from typing import List
 import random
@@ -10,13 +9,13 @@ from accelerate import init_empty_weights
 import outlines
 import outlines.caching as cache
 
-from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
-from transformers import pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed, pipeline
 from tqdm.auto import tqdm
 from pydantic import BaseModel, ValidationError, conlist,constr
 
 from config import hf_token
 from evaluate import calculate_statistics,generate_validation_regex
+from utils import serialize_dict
 
 # Disabling outlines cache because it balloons to 300+ GB
 cache.disable_cache()
@@ -61,10 +60,7 @@ prompt_dict = {"reasoning" : """You are an expert problem solver. You are doing 
     """
     }
 
-def serialize_dict(dict_to_serialize):
-    args_json_str = json.dumps(dict_to_serialize,sort_keys=True)
-    args_hex_digest = hashlib.sha256(args_json_str.encode()).hexdigest()
-    return args_hex_digest
+
     
 def parse_args():
     parser = argparse.ArgumentParser(description="Parse constants for model and prompt settings.")
@@ -104,7 +100,7 @@ def parse_args():
     parser.add_argument('--top_p', type=float, default=1.0, 
                         help='Top-p sampling probability. Range: 0 to 1')
     parser.add_argument('--resolution', type=int, default =16, choices= [16,8,4],
-                        help='')
+                        help='Bits to quantize model with')
     parser.add_argument('--max_tokens', type=int, default =1024,
                         help='')
 
@@ -243,7 +239,6 @@ if __name__ == "__main__":
             else:
                 raise ValueError(f"Unsupported temperature {temperature} received, expected a value between 0 and 1")
     end_time = time.perf_counter()
-    model_name = model_id.split('/')[-1]
     args_dict = vars(args)
     serialized_args = serialize_dict(args_dict)
     output = {"results" :results,
