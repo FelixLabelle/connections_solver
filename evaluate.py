@@ -73,7 +73,7 @@ def parser_args():
     parser = argparse.ArgumentParser(description="Process experiment data for analysis.")
     
     parser.add_argument(
-        "--filename", 
+        "--output_filename", 
         type=str, 
         default="results_structured.xlsx", 
         help="Output file name (default: results_structured.xlsx)"
@@ -136,8 +136,8 @@ if __name__ == "__main__":
     'Qwen/Qwen2.5-7B-Instruct' : 7,
     'Qwen/Qwen2.5-1.5B-Instruct' : 1.5}
 
-    args = parse_args()
-    filename = args.filename
+    args = parser_args()
+    output_filename = args.output_filename
     required_columns = args.required_columns
     independent_variables = args.independent_variables
     dependent_variables = args.dependent_variables
@@ -160,8 +160,7 @@ if __name__ == "__main__":
     global_results_df['param_count'] = global_results_df['model_id'].map(model_to_param_count)
     global_results_df['model_family'] = global_results_df['model_id'].apply(lambda x: 'Qwen' if 'Qwen' in x else 'Llama3')
     print(global_results_df[output_columns].sort_values(required_columns+independent_variables).to_markdown(index=False))
-    import pdb;pdb.set_trace()
-    
+
     for dependent_variable in dependent_variables:
         for independent_variable in independent_variables:
             result = spearmanr(global_results_df[independent_variable], global_results_df[dependent_variable])
@@ -189,5 +188,4 @@ if __name__ == "__main__":
         reg_accuracy.fit(scaled_independent_variable_items, scaled_dependent_variable_items)
         print("Coefficients for 'mean_accuracy':", dict(zip(independent_variable_items.columns, reg_accuracy.coef_)))
     
-    import pdb;pdb.set_trace()
-    global_results_df[output_columns].to_excel(filename,index=False)
+    global_results_df[output_columns].to_excel(output_filename,index=False)

@@ -13,7 +13,7 @@ k_shot_options = [0, 1, 3, 5]
 sample_size = 50  # Fixed sample size
 resolutions = [4,8,16] #,8,16]
 
-script_name = "group_preds_poc.py"
+script_name = "structured_connections_solver.py"
 
 # Executes a gridsearch for hyperparameters above and writes to a batch file
 def generate_experiment_bat(output_filename):
