@@ -68,7 +68,55 @@ def format_result(model_results):
    results_dict = flatten_dict(model_results['metrics'],max_depth=1)
    metadata_dict.update(results_dict)
    return metadata_dict
- 
+
+def parser_args():
+    parser = argparse.ArgumentParser(description="Process experiment data for analysis.")
+    
+    parser.add_argument(
+        "--filename", 
+        type=str, 
+        default="results_structured.xlsx", 
+        help="Output file name (default: results_structured.xlsx)"
+    )
+    parser.add_argument(
+        "--required_columns", 
+        type=str, 
+        nargs='+', 
+        default=['model_id', 'total_run_time_seconds'], 
+        help="List of required columns (default: ['model_id', 'total_run_time_seconds'])"
+    )
+    parser.add_argument(
+        "--independent_variables", 
+        type=str, 
+        nargs='+', 
+        default=['param_count', 'prompt_k', 'resolution', 'prompt_version', 'model_family'], 
+        help="List of independent variables (default: ['param_count', 'prompt_k', 'resolution', 'prompt_version', 'model_family'])"
+    )
+    parser.add_argument(
+        "--dependent_variables", 
+        type=str, 
+        nargs='+', 
+        default=['mean_accuracy'], 
+        help="List of dependent variables (default: ['mean_accuracy'])"
+    )
+    parser.add_argument(
+        "--results_glob", 
+        type=str, 
+        default='results/experiment-*.json', 
+        help="Glob pattern for results files (default: 'results/experiment-*.json')"
+    )
+    parser.add_argument(
+        "--connections_file", 
+        type=str, 
+        default="NYT-Connections-Answers/connections.json", 
+        help="Path to the connections file (default: 'NYT-Connections-Answers/connections.json')"
+    )
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    return args
+    
 if __name__ == "__main__":
     from glob import glob
     
@@ -88,15 +136,17 @@ if __name__ == "__main__":
     'Qwen/Qwen2.5-7B-Instruct' : 7,
     'Qwen/Qwen2.5-1.5B-Instruct' : 1.5}
 
-    
-    required_columns = ['model_id']
-    independent_variables = ['param_count', 'prompt_k', 'resolution','prompt_version'] #, 'use_structured_prediction']
-    dependent_variables = ['mean_accuracy'] #,'percentage_format_passed']
-    results_glob = f'results/experiment-*.json'
+    args = parse_args()
+    filename = args.filename
+    required_columns = args.required_columns
+    independent_variables = args.independent_variables
+    dependent_variables = args.dependent_variables
+    results_glob = args.results_glob
+    connections_file = args.connections_file
     
     output_columns = required_columns + independent_variables + dependent_variables
     
-    nyt_connections_data = json.load(open("NYT-Connections-Answers/connections.json",'r'))
+    nyt_connections_data = json.load(open(connections_file,'r'))
     global_results = []
     for filename in tqdm(glob(results_glob)):
         model_results = json.load(open(filename,'r',encoding='utf-8'))
@@ -108,6 +158,7 @@ if __name__ == "__main__":
     global_results_df = pd.DataFrame(global_results)
     #global_results_df = global_results_df[global_results_df['resolution']]
     global_results_df['param_count'] = global_results_df['model_id'].map(model_to_param_count)
+    global_results_df['model_family'] = global_results_df['model_id'].apply(lambda x: 'Qwen' if 'Qwen' in x else 'Llama3')
     print(global_results_df[output_columns].sort_values(required_columns+independent_variables).to_markdown(index=False))
     import pdb;pdb.set_trace()
     
@@ -139,4 +190,4 @@ if __name__ == "__main__":
         print("Coefficients for 'mean_accuracy':", dict(zip(independent_variable_items.columns, reg_accuracy.coef_)))
     
     import pdb;pdb.set_trace()
-    global_results_df[output_columns].to_excel("results_structured.xlsx",index=False)
+    global_results_df[output_columns].to_excel(filename,index=False)
