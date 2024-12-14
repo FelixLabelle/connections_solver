@@ -23,8 +23,9 @@ def calculate_statistics(results,nyt_connections_data):
     vals = []
     stats = {}
     format_types = []
+    id_to_idx_mapping = {str(nyt_connections_datum['id']) : item_idx for item_idx,nyt_connections_datum in enumerate(nyt_connections_data)}
     for result_id, result in results.items():
-        item_idx = int(result_id) - 1
+        item_idx = id_to_idx_mapping[result_id]
         if isinstance(result,dict):
             groups = result['groups']
             pred = {frozenset(group["words"]) for group in groups}

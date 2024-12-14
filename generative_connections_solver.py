@@ -57,7 +57,79 @@ prompt_dict = {"reasoning" : """You are an expert problem solver. You are doing 
     Categories will always be more specific than "5-LETTER-WORDS," "NAMES" or "VERBS."
 
     Each puzzle has exactly one solution. Watch out for words that seem to belong to multiple categories!
-    """
+    """,
+    "connecting_dots_themed" : '''
+You are solving the "Connections" puzzle. Your goal is to group 16 words into 4 groups of 4, where each group shares a unique commonality. Follow these rules and guidelines:
+
+### Game Rules:
+
+- Each word belongs to exactly one group. Words cannot appear twice
+- Groups must be specific and cannot overlap.
+- Connections range in difficulty, from straightforward to obscure.
+
+### Common Group Types:
+
+- **Semantic Groups**: Based on meaning. Examples:
+  - Synonyms: [‘ASSOCIATE’, ‘FELLOW’, ‘PARTNER’, ‘PEER’].
+  - Polysemy: [‘ANIMAL’, ‘BIRTHMARK’, ‘SPY’, ‘UNIT’].
+  - Hypernymy: [‘AGE’, ‘DAY’, ‘ERA’, ‘TIME’].
+- **Associative Groups**: Linked by shared properties or connotations. Examples:
+  - ORIGIN: [‘CRADLE’, ‘FONT’, ‘ROOT’, ‘SOURCE’].
+  - THINGS THAT ARE ORANGE: [‘BASKETBALL’, ‘CARROT’, ‘GOLDFISH’, ‘PUMPKIN’].
+- **Linguistic Groups**: Patterns in word structure or sound. Examples:
+  - NOUN SUFFIXES: [‘DOM’, ‘ION’, ‘NESS’, ‘SHIP’].
+  - Silent “W”: [‘ANSWER’, ‘TWO’, ‘WRIST’, ‘WRONG’].
+- **Multiword Expressions**: Words with shared prefixes or suffixes. Example:
+  - ___WOOD: [‘DOG’, ‘DRIFT’, ‘HOLLY’, ‘SANDAL’].
+- **Combined Knowledge Groups**: Require blending multiple types of reasoning. Examples:
+  - CITY HOMOPHONES: [‘DELI’, ‘NIECE’, ‘ROAM’, ‘SOUL’].
+  - SOCIAL MEDIA APP ENDINGS: [‘BOOK’, ‘GRAM’, ‘IN’, ‘TUBE’].
+
+### Strategy:
+
+- Carefully analyze all 16 words to identify potential overlaps or red herrings.
+- Group 1 is often intuitive; Group 4 may involve compound words or obscure connections.
+- Submit exactly 4 groups with 4 distinct words each.
+
+Example Puzzle:
+Words: [‘Bass’, ‘Opal’, ‘Trout’, ‘Salmon’, ‘Ant’, ‘Drill’, ‘Island’, ‘Flounder’].
+
+Solution:
+
+{  
+  "groups": [  
+    {"theme": "FISH", "words": ["Bass", "Flounder", "Salmon", "Trout"]},  
+    {"theme": "FIRE ___", "words": ["Ant", "Drill", "Island", "Opal"]}  
+  ]  
+}  
+''',
+    "connecting_dots" : '''
+You are solving the "Connections" puzzle. Your goal is to group 16 words into 4 groups of 4, where each group shares a unique commonality. Follow these rules and guidelines:
+
+### Game Rules:
+
+- Each word belongs to exactly one group. Words cannot appear twice
+- Groups must be specific and cannot overlap.
+- Connections range in difficulty, from straightforward to obscure.
+
+### Strategy:
+
+- Carefully analyze all 16 words to identify potential overlaps or red herrings.
+- Group 1 is often intuitive; Group 4 may involve compound words or obscure connections.
+- Submit exactly 4 groups with 4 distinct words each.
+
+Example Puzzle:
+Words: [‘Bass’, ‘Opal’, ‘Trout’, ‘Salmon’, ‘Ant’, ‘Drill’, ‘Island’, ‘Flounder’].
+
+Solution:
+
+{  
+  "groups": [  
+    {"theme": "FISH", "words": ["Bass", "Flounder", "Salmon", "Trout"]},  
+    {"theme": "FIRE ___", "words": ["Ant", "Drill", "Island", "Opal"]}  
+  ]  
+}  
+''',
     }
 
 
@@ -71,12 +143,12 @@ def parse_args():
     # Model ID with choices
     parser.add_argument('--model_id', type=str, default="meta-llama/Meta-Llama-3.1-8B-Instruct",
                         choices = [
-                            "mistralai/Mistral-7B-Instruct-v0.3",
                             "meta-llama/Llama-3.2-1B-Instruct",
                             "meta-llama/Llama-3.2-3B-Instruct",
                             "meta-llama/Meta-Llama-3.1-8B-Instruct",
                             "Qwen/Qwen2.5-1.5B-Instruct",
                             "Qwen/Qwen2.5-3B-Instruct",
+                            "Qwen/Qwen2.5-7B-Instruct",
                             "Qwen/Qwen2.5-14B-Instruct",
                         ],
                         help='Huggingface Model Path')
@@ -85,7 +157,7 @@ def parse_args():
     parser.add_argument('--use_structured_prediction', action='store_true', 
                         default=False, help='Enable structured prediction')
     parser.add_argument('--prompt_version', type=str, default="default", 
-                        choices=["reasoning", "default"], 
+                        choices=prompt_dict.keys(), 
                         help='Prompt version to use')
     parser.add_argument('--k_shot', type=int, default=0, 
                         help='Number of shots for few-shot learning. Must be less than sample_size - 1')
@@ -93,7 +165,9 @@ def parse_args():
     # Data settings
     parser.add_argument('--sample_size', type=int, default=-1, 
                         help='Sample size. Valid choices are -1 or greater')
-
+    parser.add_argument('--nyt_dataset_path' ,type=str, default="NYT-Connections-Answers/connections.json",
+                        help="Path for connections dataset")
+                        
     # Generation settings
     parser.add_argument('--temperature', type=float, default=0.0, 
                         help='Sampling temperature. Range: 0 to 1')
@@ -122,6 +196,7 @@ if __name__ == "__main__":
     top_p = args.top_p
     resolution = args.resolution
     max_tokens = args.max_tokens
+    nyt_dataset_path = args.nyt_dataset_path
     # Init random seeds
     set_seed(seed)
     
@@ -175,12 +250,14 @@ if __name__ == "__main__":
     connections_prompt = prompt_dict[prompt_version]
 
     results = {}
-    nyt_connections_data = json.load(open("NYT-Connections-Answers/connections.json",'r'))
+    
+    nyt_connections_data = json.load(open(nyt_dataset_path,'r',encoding="utf-8"))
     if sample_size > 0:
         nyt_connections_data = [val for val in random.Random(seed).sample(nyt_connections_data,sample_size)]
     else:
         pass
     start_time = time.perf_counter()
+    
     for datum_idx, nyt_connections_datum in enumerate(tqdm(nyt_connections_data)):
         
 
@@ -192,12 +269,14 @@ if __name__ == "__main__":
             for k_shot_example in k_shot_examples:
                 k_shot_connections_words = [word for item in k_shot_example['answers'] for word in item['members']]
                 formatted_example = {"groups" : [{"words" : group['members'],"theme" : group['group']} for group in k_shot_example["answers"]]}
-                messages.append({"role" : "user", "content" : f"Your words are {";".join(k_shot_connections_words)}. Good luck!"})
+                #messages.append({"role" : "user", "content" : f"Your words are {";".join(k_shot_connections_words)}. Good luck!"})
+                messages.append({"role": "user", "content": f"Your words are {';'.join(k_shot_connections_words)}. Good luck!"})
+
                 messages.append({"role" : "assistant", "content" : json.dumps(formatted_example)})
             
         connections_words = [word for item in nyt_connections_datum['answers'] for word in item['members']]
         random.Random(seed).shuffle(connections_words)
-        prompt_words = f"Your words are {";".join(connections_words)}. Good luck!"
+        prompt_words = f"Your words are {';'.join(connections_words)}. Good luck!"
         messages += [{"role" : "user", "content" : prompt_words}]
 
         if use_structured_prediction:
@@ -247,6 +326,6 @@ if __name__ == "__main__":
               "write_date" : date.today().strftime("%Y-%m-%d"),
               "parameters" : args_dict,
               "code_version" : "0.0.2"},
-              "metrics" : calculate_statistics(results),
+              "metrics" : calculate_statistics(results,nyt_connections_data),
               }
     json.dump(output,open(f'results/experiment-{serialized_args}.json','w'))
